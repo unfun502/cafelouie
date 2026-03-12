@@ -4,7 +4,3 @@ compatibility_date = "2024-09-25"
 
 [site]
 bucket = "./dist"
-
-[[routes]]
-pattern = "cafelouie.devlab502.net"
-custom_domain = true
