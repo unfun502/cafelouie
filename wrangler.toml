@@ -2,5 +2,8 @@ name = "cafelouie"
 main = "worker/index.js"
 compatibility_date = "2024-09-25"
 
+[vars]
+UMAMI_SITE_ID = "52e1c759-94d9-4b85-9add-030daa0ac3bd"
+
 [site]
 bucket = "./dist"
