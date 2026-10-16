@@ -5,7 +5,7 @@ Café LOUIE is an interactive community question viewer for the Reach of Louisvi
 
 ## Tech Stack
 - **Frontend:** React 18 + Vite (JSX, no TypeScript)
-- **Hosting:** Cloudflare Workers (Workers Sites via `@cloudflare/kv-asset-handler`)
+- **Hosting:** Cloudflare Workers (Workers Static Assets: `[assets]` binding `ASSETS`, `run_worker_first = true`)
 - **CI/CD:** GitHub Actions → Cloudflare Workers
 - **Fonts:** Google Fonts (Anton, Caveat) via `index.html`
 - **No backend, no database** — all 117 questions are hardcoded in the component

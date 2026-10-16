@@ -1,7 +1,10 @@
-import { getAssetFromKV, NotFoundError } from '@cloudflare/kv-asset-handler'
-import manifestJSON from '__STATIC_CONTENT_MANIFEST'
-
-const assetManifest = JSON.parse(manifestJSON)
+/**
+ * Serves the Vite build from Workers Static Assets (binding ASSETS), adding
+ * security headers, HTML no-cache and Umami injection. Every request runs
+ * through here (run_worker_first in wrangler.toml); unknown paths get
+ * index.html from not_found_handling (the old SPA fallback). Asset reads are
+ * not KV operations.
+ */
 
 function addSecurityHeaders(headers) {
   headers.set('X-Content-Type-Options', 'nosniff')
@@ -36,29 +39,28 @@ function injectAnalytics(response, env) {
   return response
 }
 
+function isHtml(path, response) {
+  return (
+    !path.includes('.') ||
+    path.endsWith('.html') ||
+    (response.headers.get('content-type') || '').includes('text/html')
+  )
+}
+
 export default {
-  async fetch(request, env, ctx) {
-    try {
-      const response = await getAssetFromKV(
-        { request, waitUntil: ctx.waitUntil.bind(ctx) },
-        { ASSET_NAMESPACE: env.__STATIC_CONTENT, ASSET_MANIFEST: assetManifest }
-      )
-      const headers = new Headers(response.headers)
-      addSecurityHeaders(headers)
-      return injectAnalytics(new Response(response.body, { status: response.status, headers }), env)
-    } catch (e) {
-      if (e instanceof NotFoundError) {
-        const url = new URL(request.url)
-        url.pathname = '/index.html'
-        const fallback = await getAssetFromKV(
-          { request: new Request(url.toString(), request), waitUntil: ctx.waitUntil.bind(ctx) },
-          { ASSET_NAMESPACE: env.__STATIC_CONTENT, ASSET_MANIFEST: assetManifest }
-        )
-        const headers = new Headers(fallback.headers)
-        addSecurityHeaders(headers)
-        return injectAnalytics(new Response(fallback.body, { status: 200, headers }), env)
-      }
-      return new Response('Server Error', { status: 500 })
-    }
+  async fetch(request, env) {
+    const path = new URL(request.url).pathname
+    const asset = await env.ASSETS.fetch(request)
+    const headers = new Headers(asset.headers)
+    addSecurityHeaders(headers)
+    if (isHtml(path, asset)) headers.set('Cache-Control', 'no-cache')
+    // Vite's content-hashed bundles never change under the same name.
+    else if (path.startsWith('/assets/') && asset.ok) headers.set('Cache-Control', 'public, max-age=31536000')
+    const response = new Response(asset.body, {
+      status: asset.status,
+      statusText: asset.statusText,
+      headers,
+    })
+    return injectAnalytics(response, env)
   }
 }
